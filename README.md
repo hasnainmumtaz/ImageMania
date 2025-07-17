@@ -19,13 +19,20 @@ A powerful reverse image search application that connects to your Shopify store 
 
 ## 🚀 Quick Start
 
-### 1. Install Dependencies
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/hasnainmumtaz/ImageMania
+cd ImageMania
+```
+
+### 2. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Set up Shopify API Access
+### 3. Set up Shopify API Access
 
 1. **Create a Private App in Shopify:**
    - Go to your Shopify admin → Apps → Develop apps
@@ -40,7 +47,7 @@ pip install -r requirements.txt
    - Shop URL (e.g., `your-store.myshopify.com`)
    - Admin API access token
 
-### 3. Run the Application
+### 4. Run the Application
 
 #### Option A: FastAPI + Streamlit (Recommended)
 ```bash
@@ -63,7 +70,7 @@ python client_example.py
 python storage_demo.py
 ```
 
-### 4. Configure and Use
+### 5. Configure and Use
 
 1. Open the Streamlit app in your browser (usually `http://localhost:8501`)
 2. Enter your Shopify credentials
