@@ -41,11 +41,19 @@ pip install -r requirements.txt
    - Under "Admin API access scopes", enable:
      - `read_products`
      - `read_product_listings`
-   - Save and copy your credentials
+   - Click **"Save"**
+   - Go to **"API credentials"** tab
+   - Click **"Install app"** to generate the access token
+   - Copy the **Admin API access token**
 
 2. **Get your credentials:**
    - Shop URL (e.g., `your-store.myshopify.com`)
-   - Admin API access token
+   - Admin API access token (not the API key)
+
+3. **Test your credentials:**
+   ```bash
+   python test_shopify_auth.py
+   ```
 
 ### 4. Run the Application
 
@@ -179,6 +187,12 @@ Monitor these key metrics:
 
 ## 🧪 Testing & Examples
 
+### Test Shopify Credentials
+```bash
+python test_shopify_auth.py
+```
+Test your Shopify API credentials before using the main application.
+
 ### Client Example
 ```bash
 python client_example.py
@@ -190,6 +204,25 @@ Demonstrates API usage with example store configurations.
 python storage_demo.py
 ```
 Shows local storage features, cache management, and monitoring.
+
+## 🔧 Troubleshooting
+
+### Shopify API Authentication Issues
+
+If you get a "401: Invalid API key or access token" error:
+
+1. **Verify App Type**: Make sure you created a **Private App**, not a Public App
+2. **Check Installation**: Ensure you clicked "Install app" after creating the app
+3. **Verify Permissions**: Confirm `read_products` and `read_product_listings` are enabled
+4. **Use Correct Token**: Use the **Admin API access token**, not the API key
+5. **Check Shop URL**: Use format `your-store.myshopify.com` (without https://)
+6. **Test Credentials**: Run `python test_shopify_auth.py` to verify your setup
+
+### Common Error Messages
+
+- **"Invalid API key or access token"**: Check your access token and app installation
+- **"No product embeddings found"**: Ensure your store has products with images
+- **"Shopify API error"**: Verify your shop URL format and permissions
 
 ## 🤝 Contributing
 
