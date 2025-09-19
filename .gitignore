@@ -1,3 +1,5 @@
 .venv/
 images/
 embeddings_cache/
+streamlit_app.py
+streamlit/
