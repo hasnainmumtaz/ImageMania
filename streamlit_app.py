@@ -66,7 +66,7 @@ class ShopifyImageSearchClient:
         except Exception as e:
             return False, {"error": str(e)}
     
-    def search_products(self, shop_url, access_token, image_data, top_k=5, similarity_threshold=0.1):
+    def search_products(self, shop_url, access_token, image_data, top_k=5, similarity_threshold=0.1, include_product_details=False):
         """Search for similar products"""
         try:
             url = f"{self.api_url}/search"
@@ -76,7 +76,8 @@ class ShopifyImageSearchClient:
                 'shop_url': shop_url,
                 'access_token': access_token,
                 'top_k': top_k,
-                'similarity_threshold': similarity_threshold
+                'similarity_threshold': similarity_threshold,
+                'include_product_details': include_product_details
             }
             
             response = requests.post(url, files=files, data=data, timeout=30)
@@ -215,6 +216,11 @@ def main():
         st.subheader("🔍 Search Settings")
         top_k = st.slider("Number of results", 3, 15, 5)
         similarity_threshold = st.slider("Similarity threshold", 0.0, 1.0, 0.1, 0.05)
+        include_product_details = st.checkbox(
+            "Include detailed product information", 
+            value=False,
+            help="Fetch complete product details including variants, pricing, inventory, etc. (slower but more comprehensive)"
+        )
         
         # Cache management
         st.subheader("💾 Cache Management")
@@ -282,7 +288,7 @@ def main():
                         img_byte_arr = img_byte_arr.getvalue()
                         
                         success, results = client.search_products(
-                            shop_url, access_token, img_byte_arr, top_k, similarity_threshold
+                            shop_url, access_token, img_byte_arr, top_k, similarity_threshold, include_product_details
                         )
                         
                         if success:
@@ -416,6 +422,75 @@ def main():
                         for j, img_data in enumerate(result['images']):
                             with cols[j % 3]:
                                 st.write(f"Score: {img_data['score']:.3f}")
+                
+                # Display detailed product information if available
+                if 'detailed_info' in result and result['detailed_info']:
+                    st.subheader("📋 Detailed Product Information")
+                    
+                    detailed = result['detailed_info']
+                    
+                    # Basic info
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.write(f"**Status:** {detailed.get('status', 'N/A')}")
+                        st.write(f"**Created:** {detailed.get('created_at', 'N/A')[:10] if detailed.get('created_at') else 'N/A'}")
+                    with col2:
+                        st.write(f"**Updated:** {detailed.get('updated_at', 'N/A')[:10] if detailed.get('updated_at') else 'N/A'}")
+                        st.write(f"**Published:** {detailed.get('published_at', 'N/A')[:10] if detailed.get('published_at') else 'N/A'}")
+                    with col3:
+                        st.write(f"**SEO Title:** {detailed.get('seo_title', 'N/A')}")
+                        st.write(f"**Template:** {detailed.get('template_suffix', 'N/A')}")
+                    
+                    # Tags
+                    if detailed.get('tags'):
+                        st.write(f"**Tags:** {', '.join(detailed['tags'])}")
+                    
+                    # Description
+                    if detailed.get('body_html'):
+                        st.write("**Description:**")
+                        st.markdown(detailed['body_html'], unsafe_allow_html=True)
+                    
+                    # Variants
+                    if detailed.get('variants'):
+                        st.subheader("💰 Product Variants")
+                        for variant in detailed['variants']:
+                            with st.expander(f"Variant: {variant.get('title', 'Default')}"):
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.write(f"**Price:** ${variant.get('price', 'N/A')}")
+                                    st.write(f"**Compare At:** ${variant.get('compare_at_price', 'N/A')}")
+                                with col2:
+                                    st.write(f"**SKU:** {variant.get('sku', 'N/A')}")
+                                    st.write(f"**Inventory:** {variant.get('inventory_quantity', 'N/A')}")
+                                with col3:
+                                    st.write(f"**Weight:** {variant.get('weight', 'N/A')} {variant.get('weight_unit', '')}")
+                                    st.write(f"**Barcode:** {variant.get('barcode', 'N/A')}")
+                                
+                                # Options
+                                options_text = []
+                                if variant.get('option1'):
+                                    options_text.append(f"Option 1: {variant['option1']}")
+                                if variant.get('option2'):
+                                    options_text.append(f"Option 2: {variant['option2']}")
+                                if variant.get('option3'):
+                                    options_text.append(f"Option 3: {variant['option3']}")
+                                
+                                if options_text:
+                                    st.write("**Options:** " + " | ".join(options_text))
+                    
+                    # All Images
+                    if detailed.get('images'):
+                        st.subheader("🖼️ All Product Images")
+                        image_cols = st.columns(min(4, len(detailed['images'])))
+                        for j, img in enumerate(detailed['images']):
+                            with image_cols[j % 4]:
+                                try:
+                                    img_response = requests.get(img['src'], timeout=5)
+                                    if img_response.status_code == 200:
+                                        product_img = Image.open(io.BytesIO(img_response.content))
+                                        st.image(product_img, caption=f"Image {j+1}", use_container_width=True)
+                                except Exception as e:
+                                    st.write(f"Image {j+1}: Error loading")
                 
                 st.divider()
         else:

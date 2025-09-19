@@ -107,6 +107,102 @@ def configure_shopify(shop_url: str, access_token: str):
     shopify.ShopifyResource.set_site(f"https://{shop_url}/admin/api/2023-10")
     shopify.ShopifyResource.set_headers({'X-Shopify-Access-Token': access_token})
 
+# Fetch detailed product information from Shopify
+def get_product_details(shop_url: str, access_token: str, product_ids: List[int]) -> Dict[int, Dict]:
+    """Fetch detailed product information for specific product IDs"""
+    try:
+        configure_shopify(shop_url, access_token)
+        
+        product_details = {}
+        
+        # Fetch products in batches to avoid API limits
+        batch_size = 50
+        for i in range(0, len(product_ids), batch_size):
+            batch_ids = product_ids[i:i + batch_size]
+            
+            # Use Shopify API to get product details
+            products = shopify.Product.find(ids=','.join(map(str, batch_ids)))
+            
+            for product in products:
+                # Get variants
+                variants = []
+                for variant in product.variants:
+                    variants.append({
+                        'id': variant.id,
+                        'title': variant.title,
+                        'price': str(variant.price),
+                        'compare_at_price': str(variant.compare_at_price) if variant.compare_at_price else None,
+                        'sku': variant.sku,
+                        'inventory_quantity': variant.inventory_quantity,
+                        'weight': variant.weight,
+                        'weight_unit': variant.weight_unit,
+                        'requires_shipping': variant.requires_shipping,
+                        'taxable': variant.taxable,
+                        'barcode': variant.barcode,
+                        'image_id': variant.image_id,
+                        'position': variant.position,
+                        'option1': variant.option1,
+                        'option2': variant.option2,
+                        'option3': variant.option3,
+                        'created_at': variant.created_at.isoformat() if variant.created_at else None,
+                        'updated_at': variant.updated_at.isoformat() if variant.updated_at else None
+                    })
+                
+                # Get images
+                images = []
+                for image in product.images:
+                    images.append({
+                        'id': image.id,
+                        'src': image.src,
+                        'alt': image.alt,
+                        'width': image.width,
+                        'height': image.height,
+                        'position': image.position,
+                        'created_at': image.created_at.isoformat() if image.created_at else None,
+                        'updated_at': image.updated_at.isoformat() if image.updated_at else None
+                    })
+                
+                # Get options
+                options = []
+                for option in product.options:
+                    options.append({
+                        'id': option.id,
+                        'name': option.name,
+                        'position': option.position,
+                        'values': option.values
+                    })
+                
+                # Get tags
+                tags = product.tags.split(', ') if product.tags else []
+                
+                product_details[product.id] = {
+                    'id': product.id,
+                    'title': product.title,
+                    'body_html': product.body_html,
+                    'vendor': product.vendor,
+                    'product_type': product.product_type,
+                    'handle': product.handle,
+                    'status': product.status,
+                    'published_at': product.published_at.isoformat() if product.published_at else None,
+                    'created_at': product.created_at.isoformat() if product.created_at else None,
+                    'updated_at': product.updated_at.isoformat() if product.updated_at else None,
+                    'tags': tags,
+                    'variants': variants,
+                    'images': images,
+                    'options': options,
+                    'seo_title': product.seo_title,
+                    'seo_description': product.seo_description,
+                    'template_suffix': product.template_suffix,
+                    'published_scope': product.published_scope,
+                    'admin_graphql_api_id': product.admin_graphql_api_id
+                }
+        
+        return product_details
+        
+    except Exception as e:
+        print(f"Error fetching product details: {str(e)}")
+        return {}
+
 # Generate product hash for change detection
 def generate_product_hash(product: Dict) -> str:
     """Generate a hash for product metadata to detect changes"""
@@ -438,7 +534,8 @@ async def search_products(
     access_token: str = Form(...),
     image: UploadFile = File(...),
     top_k: int = Form(5),
-    similarity_threshold: float = Form(0.1)
+    similarity_threshold: float = Form(0.1),
+    include_product_details: bool = Form(False)
 ):
     start_time = time.time()
     start_memory = get_memory_usage()
@@ -508,9 +605,13 @@ async def search_products(
         
         # Format results with store-specific URLs
         results = []
+        product_ids = []
+        
         for product_group in final_ranked_products[:top_k]:
             product = product_group['product']
-            results.append({
+            product_ids.append(product['id'])
+            
+            result = {
                 'id': product['id'],
                 'title': product['title'],
                 'product_type': product['product_type'],
@@ -524,7 +625,26 @@ async def search_products(
                 } for img in product_group['images']],
                 'product_url': f"https://{shop_url}/products/{product['handle']}",
                 'store_url': shop_url  # Include store URL for verification
-            })
+            }
+            
+            # Add detailed product information if requested
+            if include_product_details:
+                result['detailed_info'] = None  # Will be populated below
+            
+            results.append(result)
+        
+        # Fetch detailed product information if requested
+        if include_product_details and product_ids:
+            print(f"🔄 Fetching detailed product information for {len(product_ids)} products...")
+            detailed_products = get_product_details(shop_url, access_token, product_ids)
+            
+            # Add detailed information to results
+            for result in results:
+                product_id = result['id']
+                if product_id in detailed_products:
+                    result['detailed_info'] = detailed_products[product_id]
+                else:
+                    result['detailed_info'] = None
         
         # Calculate resource usage
         end_time = time.time()

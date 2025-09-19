@@ -7,7 +7,7 @@ class ShopifyImageSearchClient:
     def __init__(self, api_url="http://localhost:8000"):
         self.api_url = api_url
     
-    def search_products(self, shop_url, access_token, image_path, top_k=5, similarity_threshold=0.1):
+    def search_products(self, shop_url, access_token, image_path, top_k=5, similarity_threshold=0.1, include_product_details=False):
         """
         Search for similar products in a specific Shopify store
         
@@ -17,6 +17,7 @@ class ShopifyImageSearchClient:
             image_path (str): Path to the query image
             top_k (int): Number of results to return
             similarity_threshold (float): Minimum similarity score
+            include_product_details (bool): Whether to include detailed product information
             
         Returns:
             dict: Search results (only from the specified store)
@@ -31,7 +32,8 @@ class ShopifyImageSearchClient:
                     'shop_url': shop_url,
                     'access_token': access_token,
                     'top_k': top_k,
-                    'similarity_threshold': similarity_threshold
+                    'similarity_threshold': similarity_threshold,
+                    'include_product_details': include_product_details
                 }
                 
                 response = requests.post(url, files=files, data=data)
@@ -208,12 +210,21 @@ if __name__ == "__main__":
             print(f"Cache Size: {cache_info['cache_size_mb']:.2f} MB")
             print(f"Last Updated: {cache_info['last_updated']}")
     
-    # Example single store search
+    # Example single store search (basic)
     # results = client.search_products(
     #     shop_url=STORE_1['shop_url'],
     #     access_token=STORE_1['access_token'],
     #     image_path="path/to/your/image.jpg",
     #     top_k=5
+    # )
+    
+    # Example single store search with detailed product information
+    # results_with_details = client.search_products(
+    #     shop_url=STORE_1['shop_url'],
+    #     access_token=STORE_1['access_token'],
+    #     image_path="path/to/your/image.jpg",
+    #     top_k=5,
+    #     include_product_details=True  # This will fetch complete product details
     # )
     # 
     # if results:
@@ -232,6 +243,18 @@ if __name__ == "__main__":
     #         print(f"   Similarity: {result['best_score']:.3f}")
     #         print(f"   Matching images: {result['matching_images']}")
     #         print(f"   Product URL: {result['product_url']}")
+    #         
+    #         # If detailed information was requested, show it
+    #         if result.get('detailed_info'):
+    #             detailed = result['detailed_info']
+    #             print(f"   Status: {detailed.get('status')}")
+    #             print(f"   Variants: {len(detailed.get('variants', []))}")
+    #             print(f"   Images: {len(detailed.get('images', []))}")
+    #             print(f"   Tags: {', '.join(detailed.get('tags', []))}")
+    #             
+    #             # Show variant pricing
+    #             for variant in detailed.get('variants', [])[:2]:  # Show first 2 variants
+    #                 print(f"     Variant: {variant.get('title')} - ${variant.get('price')}")
     
     # Example multi-store search
     # multi_results = client.search_products_multi_store(
